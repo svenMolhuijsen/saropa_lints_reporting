@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io' show Directory, File, Platform, stderr;
 
 import 'package:saropa_lints/src/saropa_lint_rule.dart';
+import 'sarif_generator.dart';
 
 /// Writes analysis reports to the project's `reports/` directory.
 ///
@@ -37,7 +38,8 @@ class AnalysisReporter {
     _written = false;
 
     final now = DateTime.now();
-    _timestamp = '${now.year}'
+    _timestamp =
+        '${now.year}'
         '${now.month.toString().padLeft(2, '0')}'
         '${now.day.toString().padLeft(2, '0')}'
         '_'
@@ -76,6 +78,7 @@ class AnalysisReporter {
 
       _writeFullLog(fullPath);
       _writeSummary(summaryPath);
+      _writeSarif(reportsDir.path);
 
       stderr.writeln('');
       stderr.writeln('[saropa_lints] Reports written:');
@@ -104,9 +107,11 @@ class AnalysisReporter {
 
       buf.writeln('--- ${impact.name.toUpperCase()} (${list.length}) ---');
       for (final v in list) {
-        buf.writeln('  ${v.file}:${v.line} '
-            '| [${v.rule}] ${v.message} '
-            '| ${impact.name}');
+        buf.writeln(
+          '  ${v.file}:${v.line} '
+          '| [${v.rule}] ${v.message} '
+          '| ${impact.name}',
+        );
       }
       buf.writeln();
     }
@@ -179,10 +184,7 @@ class AnalysisReporter {
   }
 
   /// Write top rules section to the summary buffer.
-  static void _writeTopRules(
-    StringBuffer buf,
-    ProgressTrackerData data,
-  ) {
+  static void _writeTopRules(StringBuffer buf, ProgressTrackerData data) {
     if (data.issuesByRule.isEmpty) return;
 
     final sorted = data.issuesByRule.entries.toList()
@@ -203,10 +205,7 @@ class AnalysisReporter {
   }
 
   /// Write top files section to the summary buffer.
-  static void _writeTopFiles(
-    StringBuffer buf,
-    ProgressTrackerData data,
-  ) {
+  static void _writeTopFiles(StringBuffer buf, ProgressTrackerData data) {
     if (data.issuesByFile.isEmpty) return;
 
     final sorted = data.issuesByFile.entries.toList()
@@ -231,6 +230,21 @@ class AnalysisReporter {
       i++;
     }
     buf.writeln();
+  }
+
+  /// Write SARIF report.
+  static void _writeSarif(String reportsPath) {
+    try {
+      final sarifPath = '$reportsPath/${_timestamp}_saropa_lints.sarif';
+      final sarif = SarifGenerator.generate(
+        violations: ImpactTracker.violations,
+        projectRoot: _projectRoot ?? '',
+      );
+      SarifGenerator.writeToFile(sarifPath, sarif);
+      stderr.writeln('  SARIF:    $sarifPath');
+    } catch (e) {
+      stderr.writeln('[saropa_lints] Could not write SARIF: $e');
+    }
   }
 
   /// Reset state between analysis runs.

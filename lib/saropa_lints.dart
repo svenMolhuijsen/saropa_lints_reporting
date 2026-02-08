@@ -35,6 +35,7 @@ import 'package:custom_lint_builder/custom_lint_builder.dart';
 
 import 'package:saropa_lints/src/baseline/baseline_config.dart';
 import 'package:saropa_lints/src/baseline/baseline_manager.dart';
+import 'package:saropa_lints/src/exporters/export_manager.dart';
 import 'package:saropa_lints/src/rules/all_rules.dart';
 import 'package:saropa_lints/src/saropa_lint_rule.dart';
 import 'package:saropa_lints/src/tiers.dart';
@@ -2499,6 +2500,12 @@ class _SaropaLints extends PluginBase {
     if (baselineConfig.isEnabled) {
       BaselineManager.initialize(baselineConfig);
     }
+
+    // =========================================================================
+    // EXPORT CONFIGURATION
+    // =========================================================================
+    // Initialize export manager to automatically generate reports.
+    ExportManager.initialize();
 
     // =========================================================================
     // ISSUE LIMIT CONFIGURATION

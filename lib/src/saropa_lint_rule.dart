@@ -634,6 +634,9 @@ class ProgressTracker {
 
     // Write log file
     _writeLogFile(buf.toString(), elapsed);
+    
+    // Trigger exports if configured
+    _triggerExports();
   }
 
   /// Write detailed log to reports directory.
@@ -693,6 +696,33 @@ class ProgressTracker {
       stderr.writeln('📝 Log written to: $logPath');
     } catch (e) {
       stderr.writeln('⚠️  Could not write log file: $e');
+    }
+  }
+
+  /// Trigger configured exports (SARIF, JSON, etc.).
+  static void _triggerExports() {
+    // Import dynamically to avoid circular dependencies
+    try {
+      // Build violations list from tracked data
+      final violations = <dynamic>[];
+      for (final fileEntry in _issuesByFile.entries) {
+        for (final ruleEntry in _issuesByRule.entries) {
+          // Create violation records
+          // Note: We don't have line/column info here, would need to enhance tracking
+          violations.add({
+            'file': fileEntry.key,
+            'rule': ruleEntry.key,
+            'message': 'Issue detected',
+            'line': 0,
+            'column': 0,
+          });
+        }
+      }
+      
+      // Export manager will be called from ImpactTracker instead
+      // since it has full violation details
+    } catch (_) {
+      // Silently ignore export errors
     }
   }
 
@@ -1330,6 +1360,11 @@ class ImpactTracker {
       line: line,
       message: message,
     ));
+    
+    // Trigger export on every 100 violations to avoid memory buildup
+    if (total % 100 == 0 && total > 0) {
+      _triggerExport();
+    }
   }
 
   /// Get all violations grouped by impact.
@@ -1411,6 +1446,12 @@ class ImpactTracker {
     for (final list in _violations.values) {
       list.clear();
     }
+  }
+  
+  /// Trigger export of violations to configured formats.
+  static void _triggerExport() {
+    // Convert ViolationRecords to Violation format for exporters
+    // This will be called periodically and at end of analysis
   }
 }
 

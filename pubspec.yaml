@@ -25,6 +25,7 @@ executables:
   init: init
   baseline: baseline
   impact_report: impact_report
+  export_report: export_report
 
 # Dart SDK version constraint
 environment:

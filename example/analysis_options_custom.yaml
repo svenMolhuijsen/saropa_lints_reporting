@@ -1,0 +1,32 @@
+# Saropa Lints Custom Configuration
+# This file is read by saropa_lints for additional settings
+
+# Export formats - automatically generate reports after analysis
+# Supported formats: sarif, json (future), html (future)
+export_formats:
+  - sarif
+  # - json  # Coming soon
+  # - html  # Coming soon
+
+# Maximum issues to track (0 = unlimited, default: 1000)
+# After this limit, only ERROR-severity rules continue running
+max_issues: 1000
+
+# Platform targeting (enable platforms your project uses)
+platforms:
+  ios: true
+  android: true
+  macos: false
+  web: false
+  windows: false
+  linux: false
+
+# Package dependencies (disable packages you don't use)
+packages:
+  bloc: true
+  provider: true
+  riverpod: true
+  getx: true
+  firebase: true
+  isar: true
+  hive: true
