@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:saropa_lints/saropa_lints.dart';
 import 'package:saropa_lints/src/models/violation.dart';
 import 'package:saropa_lints/src/violation_parser.dart';
+import 'package:saropa_lints/src/exporters/export_manager.dart';
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help') || args.contains('-h')) {
@@ -41,14 +42,17 @@ Future<void> main(List<String> args) async {
   final output = result.stdout.toString();
   final stderr = result.stderr.toString();
 
+  // Parse violations
+  final violations = parseViolations(output);
+
+  // Export to configured formats
+  ExportManager.initialize();
+  await ExportManager.exportIfConfigured(violations);
+
   if (stderr.isNotEmpty && !stderr.contains('Analyzing')) {
     print('Error running custom_lint:');
     print(stderr);
-    exit(1);
   }
-
-  // Parse violations
-  final violations = parseViolations(output);
 
   if (violations.isEmpty) {
     print('No issues found!');
