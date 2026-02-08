@@ -57,19 +57,19 @@ class SonarExporter extends ReportExporter {
       case LintImpact.critical:
         return [
           {
-            'softwareQuality': 'RELIABILITY',
+            'softwareQuality': 'SECURITY',
             'severity': 'HIGH',
           },
           {
-            'softwareQuality': 'SECURITY',
+            'softwareQuality': 'RELIABILITY',
             'severity': 'HIGH',
           },
         ];
       case LintImpact.high:
         return [
           {
-            'softwareQuality': 'MAINTAINABILITY',
-            'severity': 'HIGH',
+            'softwareQuality': 'RELIABILITY',
+            'severity': 'MEDIUM',
           },
         ];
       case LintImpact.medium:
@@ -97,20 +97,46 @@ class SonarExporter extends ReportExporter {
   }
 
   String _cleanCodeAttributeForRule(String ruleId) {
-    if (ruleId.startsWith('prefer') || ruleId.contains('prefer_'))
-      return 'FORMATTED';
-    if (ruleId.startsWith('avoid') ||
-        ruleId.contains('avoid_') ||
-        ruleId.contains('no_')) return 'LOGICAL';
-    if (ruleId.startsWith('require') ||
-        ruleId.contains('require_') ||
-        ruleId.startsWith('enforce')) return 'COMPLETE';
-    if (ruleId.startsWith('always') || ruleId.startsWith('must'))
-      return 'CONVENTIONAL';
+    // Responsibility (check first - highest priority)
     if (ruleId.contains('security') ||
         ruleId.contains('credential') ||
         ruleId.contains('crypto') ||
         ruleId.contains('unsafe')) return 'TRUSTWORTHY';
+    if (ruleId.contains('privacy') || ruleId.contains('data_protection'))
+      return 'RESPECTFUL';
+    if (ruleId.contains('compliance') || ruleId.contains('legal'))
+      return 'LAWFUL';
+    
+    // Adaptability
+    if (ruleId.contains('focused') || ruleId.contains('single_responsibility'))
+      return 'FOCUSED';
+    if (ruleId.contains('distinct') || ruleId.contains('unique'))
+      return 'DISTINCT';
+    if (ruleId.contains('modular') || ruleId.contains('decoupled'))
+      return 'MODULAR';
+    if (ruleId.contains('test') || ruleId.contains('testable'))
+      return 'TESTED';
+    
+    // Intentionality
+    if (ruleId.contains('performance') || ruleId.contains('efficient'))
+      return 'EFFICIENT';
+    if (ruleId.contains('clear') || ruleId.contains('readable'))
+      return 'CLEAR';
+    if (ruleId.startsWith('require') ||
+        ruleId.contains('require_') ||
+        ruleId.startsWith('enforce')) return 'COMPLETE';
+    if (ruleId.startsWith('avoid') ||
+        ruleId.contains('avoid_') ||
+        ruleId.contains('no_')) return 'LOGICAL';
+    
+    // Consistency
+    if (ruleId.contains('naming') || ruleId.contains('identifier'))
+      return 'IDENTIFIABLE';
+    if (ruleId.startsWith('always') || ruleId.startsWith('must'))
+      return 'CONVENTIONAL';
+    if (ruleId.startsWith('prefer') || ruleId.contains('prefer_'))
+      return 'FORMATTED';
+    
     return 'LOGICAL';
   }
 
@@ -145,15 +171,15 @@ class SonarExporter extends ReportExporter {
   int _effortFromImpact(LintImpact impact) {
     switch (impact) {
       case LintImpact.critical:
-        return 240;
+        return 60; // 1 hour for critical security/memory issues
       case LintImpact.high:
-        return 120;
+        return 30; // 30 min for high priority bugs
       case LintImpact.medium:
-        return 60;
+        return 15; // 15 min for medium issues
       case LintImpact.low:
-        return 20;
+        return 5; // 5 min for low priority
       case LintImpact.opinionated:
-        return 10;
+        return 2; // 2 min for style issues
     }
   }
 
