@@ -3,6 +3,7 @@ import 'dart:io';
 import '../models/violation.dart';
 import '../exporters/base_exporter.dart';
 import '../exporters/sarif_exporter.dart';
+import '../exporters/sonar_exporter.dart';
 
 /// Manages automatic export of analysis results based on configuration.
 ///
@@ -60,14 +61,16 @@ class ExportManager {
       if (exporter == null) continue;
 
       try {
-        final outputPath = 'reports/saropa_lints.$format';
+        final extension = exporter.fileExtension;
+        final outputPath = 'reports/sonar-lint.$extension';
         await exporter.export(
           violations: violations,
           outputPath: outputPath,
           metadata: metadata,
         );
-      } catch (_) {
-        // Silently ignore export errors - don't break analysis
+        print('  ${exporter.formatName}: $outputPath');
+      } catch (e) {
+        print('  ${format}: ERROR - $e');
       }
     }
   }
@@ -76,6 +79,8 @@ class ExportManager {
     switch (format) {
       case 'sarif':
         return const SarifExporter();
+      case 'sonar':
+        return const SonarExporter();
       default:
         return null;
     }
