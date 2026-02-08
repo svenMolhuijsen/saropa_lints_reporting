@@ -29,7 +29,7 @@ class ExportManager {
       if (!configFile.existsSync()) return;
 
       final content = configFile.readAsStringSync();
-      
+
       // Parse export_formats list
       final match = RegExp(
         r'export_formats:\s*\n((?:\s*-\s*\w+\s*\n?)+)',
@@ -65,7 +65,8 @@ class ExportManager {
 
         // Use timestamped filenames to avoid overwrites and match other reports
         final dt = metadata['timestamp'] is String
-            ? DateTime.tryParse(metadata['timestamp'] as String) ?? DateTime.now()
+            ? DateTime.tryParse(metadata['timestamp'] as String) ??
+                DateTime.now()
             : DateTime.now();
         final ts = '${dt.year}'
             '${dt.month.toString().padLeft(2, '0')}'

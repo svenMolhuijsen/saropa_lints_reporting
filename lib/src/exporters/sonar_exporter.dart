@@ -38,25 +38,17 @@ class SonarExporter extends ReportExporter {
       final sample = violations.firstWhere((v) => v.rule == ruleId);
       final impact = sample.impact ?? LintImpact.medium;
       final impacts = _mapImpactToSonar(impact);
-      
-      final rule = {
+      return {
         'id': ruleId,
         'name': ruleId,
         'description': sample.message,
         'engineId': 'saropa_lints',
         'cleanCodeAttribute': _cleanCodeAttributeForRule(ruleId),
+        // Deprecated convenience fields (kept for compatibility)
         'type': _deprecatedTypeFromImpact(impact),
         'severity': _deprecatedSeverityFromImpact(impact),
         'impacts': impacts,
       };
-      
-      // Add OWASP tags for security rules
-      final owasp = _getOwaspTags(ruleId);
-      if (owasp.isNotEmpty) {
-        rule['tags'] = owasp;
-      }
-      
-      return rule;
     }).toList();
   }
 
@@ -65,19 +57,19 @@ class SonarExporter extends ReportExporter {
       case LintImpact.critical:
         return [
           {
-            'softwareQuality': 'SECURITY',
+            'softwareQuality': 'RELIABILITY',
             'severity': 'HIGH',
           },
           {
-            'softwareQuality': 'RELIABILITY',
+            'softwareQuality': 'SECURITY',
             'severity': 'HIGH',
           },
         ];
       case LintImpact.high:
         return [
           {
-            'softwareQuality': 'RELIABILITY',
-            'severity': 'MEDIUM',
+            'softwareQuality': 'MAINTAINABILITY',
+            'severity': 'HIGH',
           },
         ];
       case LintImpact.medium:
@@ -105,63 +97,28 @@ class SonarExporter extends ReportExporter {
   }
 
   String _cleanCodeAttributeForRule(String ruleId) {
-    // Responsibility (check first - highest priority)
-    if (ruleId.contains('security') ||
-        ruleId.contains('credential') ||
-        ruleId.contains('crypto') ||
-        ruleId.contains('unsafe')) {
-      return 'TRUSTWORTHY';
-    }
-    if (ruleId.contains('privacy') || ruleId.contains('data_protection')) {
-      return 'RESPECTFUL';
-    }
-    if (ruleId.contains('compliance') || ruleId.contains('legal')) {
-      return 'LAWFUL';
-    }
-    
-    // Adaptability
-    if (ruleId.contains('focused') || ruleId.contains('single_responsibility')) {
-      return 'FOCUSED';
-    }
-    if (ruleId.contains('distinct') || ruleId.contains('unique')) {
-      return 'DISTINCT';
-    }
-    if (ruleId.contains('modular') || ruleId.contains('decoupled')) {
-      return 'MODULAR';
-    }
-    if (ruleId.contains('test') || ruleId.contains('testable')) {
-      return 'TESTED';
-    }
-    
-    // Intentionality
-    if (ruleId.contains('performance') || ruleId.contains('efficient')) {
-      return 'EFFICIENT';
-    }
-    if (ruleId.contains('clear') || ruleId.contains('readable')) {
-      return 'CLEAR';
-    }
-    if (ruleId.startsWith('require') ||
-        ruleId.contains('require_') ||
-        ruleId.startsWith('enforce')) {
-      return 'COMPLETE';
+    if (ruleId.startsWith('prefer') || ruleId.contains('prefer_')) {
+      return 'FORMATTED';
     }
     if (ruleId.startsWith('avoid') ||
         ruleId.contains('avoid_') ||
         ruleId.contains('no_')) {
       return 'LOGICAL';
     }
-    
-    // Consistency
-    if (ruleId.contains('naming') || ruleId.contains('identifier')) {
-      return 'IDENTIFIABLE';
+    if (ruleId.startsWith('require') ||
+        ruleId.contains('require_') ||
+        ruleId.startsWith('enforce')) {
+      return 'COMPLETE';
     }
     if (ruleId.startsWith('always') || ruleId.startsWith('must')) {
       return 'CONVENTIONAL';
     }
-    if (ruleId.startsWith('prefer') || ruleId.contains('prefer_')) {
-      return 'FORMATTED';
+    if (ruleId.contains('security') ||
+        ruleId.contains('credential') ||
+        ruleId.contains('crypto') ||
+        ruleId.contains('unsafe')) {
+      return 'TRUSTWORTHY';
     }
-    
     return 'LOGICAL';
   }
 
@@ -196,38 +153,16 @@ class SonarExporter extends ReportExporter {
   int _effortFromImpact(LintImpact impact) {
     switch (impact) {
       case LintImpact.critical:
-        return 60; // 1 hour for critical security/memory issues
+        return 240;
       case LintImpact.high:
-        return 30; // 30 min for high priority bugs
+        return 120;
       case LintImpact.medium:
-        return 15; // 15 min for medium issues
+        return 60;
       case LintImpact.low:
-        return 5; // 5 min for low priority
+        return 20;
       case LintImpact.opinionated:
-        return 2; // 2 min for style issues
+        return 10;
     }
-  }
-  
-  List<String> _getOwaspTags(String ruleId) {
-    final tags = <String>[];
-    
-    if (ruleId.contains('credential') || ruleId.contains('hardcoded_credentials')) {
-      tags.addAll(['owasp-m1', 'owasp-m9', 'owasp-a07']);
-    }
-    if (ruleId.contains('crypto') || ruleId.contains('encryption')) {
-      tags.addAll(['owasp-m10', 'owasp-a02']);
-    }
-    if (ruleId.contains('https') || ruleId.contains('cleartext')) {
-      tags.addAll(['owasp-m5', 'owasp-a02']);
-    }
-    if (ruleId.contains('injection') || ruleId.contains('sql')) {
-      tags.addAll(['owasp-m4', 'owasp-a03']);
-    }
-    if (ruleId.contains('auth') || ruleId.contains('permission')) {
-      tags.addAll(['owasp-m3', 'owasp-a07']);
-    }
-    
-    return tags;
   }
 
   Map<String, dynamic> _toIssue(Violation v) {

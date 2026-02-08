@@ -5,7 +5,6 @@
 # Supported formats: sarif, json (future), html (future)
 export_formats:
   - sarif
-  - sonar
   # - json  # Coming soon
   # - html  # Coming soon
 
