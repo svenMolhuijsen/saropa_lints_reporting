@@ -62,7 +62,20 @@ class ExportManager {
 
       try {
         final extension = exporter.fileExtension;
-        final outputPath = 'reports/sonar-lint.$extension';
+
+        // Use timestamped filenames to avoid overwrites and match other reports
+        final dt = metadata['timestamp'] is String
+            ? DateTime.tryParse(metadata['timestamp'] as String) ?? DateTime.now()
+            : DateTime.now();
+        final ts = '${dt.year}'
+            '${dt.month.toString().padLeft(2, '0')}'
+            '${dt.day.toString().padLeft(2, '0')}'
+            '_'
+            '${dt.hour.toString().padLeft(2, '0')}'
+            '${dt.minute.toString().padLeft(2, '0')}'
+            '${dt.second.toString().padLeft(2, '0')}';
+
+        final outputPath = 'reports/${ts}_sonar-lint.$extension';
         await exporter.export(
           violations: violations,
           outputPath: outputPath,
