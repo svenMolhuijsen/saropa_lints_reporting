@@ -47,12 +47,31 @@ class SarifExporter extends ReportExporter {
       'tool': {
         'driver': {
           'name': 'saropa_lints',
+          'organization': 'Saropa',
+          'product': 'Saropa Lints',
+          'semanticVersion': metadata?['version'] ?? 'unknown',
           'informationUri': 'https://pub.dev/packages/saropa_lints',
-          'version': metadata?['version'] ?? 'unknown',
+          'downloadUri': 'https://pub.dev/packages/saropa_lints/install',
+          'fullDescription': {
+            'text':
+                'A collection of custom lint rules with 286 quick fixes for Flutter and Dart. Static analysis for security, accessibility, and performance.',
+          },
           'rules': _buildRules(violations),
         },
       },
       'results': violations.map(_toResult).toList(),
+      'properties': {
+        'totalViolations': violations.length,
+        'criticalCount':
+            violations.where((v) => v.impact == LintImpact.critical).length,
+        'highCount':
+            violations.where((v) => v.impact == LintImpact.high).length,
+        'mediumCount':
+            violations.where((v) => v.impact == LintImpact.medium).length,
+        'lowCount': violations.where((v) => v.impact == LintImpact.low).length,
+        'analysisTimestamp': DateTime.now().toIso8601String(),
+        ...?metadata,
+      },
     };
   }
 
@@ -60,27 +79,72 @@ class SarifExporter extends ReportExporter {
     final ruleIds = violations.map((v) => v.rule).toSet();
     return ruleIds.map((ruleId) {
       final sample = violations.firstWhere((v) => v.rule == ruleId);
+      final impact = sample.impact;
       return {
         'id': ruleId,
+        'name': ruleId.replaceAll('_', ' ').toUpperCase(),
         'shortDescription': {'text': sample.message},
+        'fullDescription': {
+          'text': sample.message,
+        },
+        'defaultConfiguration': {
+          'level': _impactToLevel(impact),
+          'rank': _impactToRank(impact),
+        },
         'helpUri':
             'https://pub.dev/packages/saropa_lints#${ruleId.replaceAll('_', '-')}',
         'properties': {
-          'impact': sample.impact?.name ?? 'unknown',
+          'impact': impact?.name ?? 'unknown',
+          'category': _getRuleCategory(ruleId),
+          'tags': _getRuleTags(ruleId, impact),
         },
       };
     }).toList();
+  }
+
+  String _getRuleCategory(String ruleId) {
+    if (ruleId.contains('security') ||
+        ruleId.contains('credential') ||
+        ruleId.contains('hardcoded')) return 'security';
+    if (ruleId.contains('accessibility') ||
+        ruleId.contains('semantics') ||
+        ruleId.contains('a11y')) return 'accessibility';
+    if (ruleId.contains('performance') ||
+        ruleId.contains('build') ||
+        ruleId.contains('expensive')) return 'performance';
+    if (ruleId.contains('memory') ||
+        ruleId.contains('leak') ||
+        ruleId.contains('dispose')) return 'memory';
+    if (ruleId.contains('test')) return 'testing';
+    return 'code-quality';
+  }
+
+  List<String> _getRuleTags(String ruleId, LintImpact? impact) {
+    final tags = <String>[];
+    tags.add(_getRuleCategory(ruleId));
+    if (impact != null) tags.add(impact.name);
+    if (ruleId.contains('bloc')) tags.add('bloc');
+    if (ruleId.contains('riverpod')) tags.add('riverpod');
+    if (ruleId.contains('provider')) tags.add('provider');
+    if (ruleId.contains('firebase')) tags.add('firebase');
+    return tags;
   }
 
   Map<String, dynamic> _toResult(Violation v) {
     return {
       'ruleId': v.rule,
       'level': _impactToLevel(v.impact),
-      'message': {'text': v.message},
+      'message': {
+        'text': v.message,
+        'markdown': v.message,
+      },
       'locations': [
         {
           'physicalLocation': {
-            'artifactLocation': {'uri': v.file},
+            'artifactLocation': {
+              'uri': v.file,
+              'uriBaseId': '%SRCROOT%',
+            },
             'region': {
               'startLine': v.line,
               'startColumn': v.column,
@@ -91,6 +155,8 @@ class SarifExporter extends ReportExporter {
       'rank': _impactToRank(v.impact),
       'properties': {
         'impact': v.impact?.name ?? 'unknown',
+        'category': _getRuleCategory(v.rule),
+        'tags': _getRuleTags(v.rule, v.impact),
       },
     };
   }
