@@ -38,17 +38,25 @@ class SonarExporter extends ReportExporter {
       final sample = violations.firstWhere((v) => v.rule == ruleId);
       final impact = sample.impact ?? LintImpact.medium;
       final impacts = _mapImpactToSonar(impact);
-      return {
+      
+      final rule = <String, dynamic>{
         'id': ruleId,
         'name': ruleId,
         'description': sample.message,
         'engineId': 'saropa_lints',
         'cleanCodeAttribute': _cleanCodeAttributeForRule(ruleId),
-        // Deprecated convenience fields (kept for compatibility)
         'type': _deprecatedTypeFromImpact(impact),
         'severity': _deprecatedSeverityFromImpact(impact),
         'impacts': impacts,
       };
+      
+      // Add OWASP tags for security rules
+      final owaspTags = _getOwaspTags(ruleId);
+      if (owaspTags.isNotEmpty) {
+        rule['tags'] = owaspTags;
+      }
+      
+      return rule;
     }).toList();
   }
 
@@ -97,6 +105,15 @@ class SonarExporter extends ReportExporter {
   }
 
   String _cleanCodeAttributeForRule(String ruleId) {
+    // Check security/responsibility first (highest priority)
+    if (ruleId.contains('security') ||
+        ruleId.contains('credential') ||
+        ruleId.contains('crypto') ||
+        ruleId.contains('unsafe')) {
+      return 'TRUSTWORTHY';
+    }
+    
+    // Then check other patterns
     if (ruleId.startsWith('prefer') || ruleId.contains('prefer_')) {
       return 'FORMATTED';
     }
@@ -112,12 +129,6 @@ class SonarExporter extends ReportExporter {
     }
     if (ruleId.startsWith('always') || ruleId.startsWith('must')) {
       return 'CONVENTIONAL';
-    }
-    if (ruleId.contains('security') ||
-        ruleId.contains('credential') ||
-        ruleId.contains('crypto') ||
-        ruleId.contains('unsafe')) {
-      return 'TRUSTWORTHY';
     }
     return 'LOGICAL';
   }
@@ -163,6 +174,28 @@ class SonarExporter extends ReportExporter {
       case LintImpact.opinionated:
         return 10;
     }
+  }
+  
+  List<String> _getOwaspTags(String ruleId) {
+    final tags = <String>[];
+    
+    if (ruleId.contains('credential')) {
+      tags.addAll(['owasp-m1', 'owasp-m9', 'owasp-a07']);
+    }
+    if (ruleId.contains('crypto') || ruleId.contains('encryption')) {
+      tags.addAll(['owasp-m10', 'owasp-a02']);
+    }
+    if (ruleId.contains('https') || ruleId.contains('cleartext')) {
+      tags.addAll(['owasp-m5', 'owasp-a02']);
+    }
+    if (ruleId.contains('injection') || ruleId.contains('sql')) {
+      tags.addAll(['owasp-m4', 'owasp-a03']);
+    }
+    if (ruleId.contains('auth') || ruleId.contains('permission')) {
+      tags.addAll(['owasp-m3', 'owasp-a07']);
+    }
+    
+    return tags;
   }
 
   Map<String, dynamic> _toIssue(Violation v) {
