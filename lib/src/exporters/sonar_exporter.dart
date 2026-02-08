@@ -50,10 +50,13 @@ class SonarExporter extends ReportExporter {
         'impacts': impacts,
       };
       
-      // Add OWASP tags for security rules
-      final owaspTags = _getOwaspTags(ruleId);
-      if (owaspTags.isNotEmpty) {
-        rule['tags'] = owaspTags;
+      // Build tags: OWASP + tier
+      final tags = <String>[];
+      tags.addAll(_getOwaspTags(ruleId));
+      tags.add('tier-${_getTierFromImpact(impact)}');
+      
+      if (tags.isNotEmpty) {
+        rule['tags'] = tags;
       }
       
       return rule;
@@ -196,6 +199,21 @@ class SonarExporter extends ReportExporter {
     }
     
     return tags;
+  }
+  
+  String _getTierFromImpact(LintImpact impact) {
+    switch (impact) {
+      case LintImpact.critical:
+        return 'essential';
+      case LintImpact.high:
+        return 'recommended';
+      case LintImpact.medium:
+        return 'professional';
+      case LintImpact.low:
+        return 'comprehensive';
+      case LintImpact.opinionated:
+        return 'pedantic';
+    }
   }
 
   Map<String, dynamic> _toIssue(Violation v) {

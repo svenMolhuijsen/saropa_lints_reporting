@@ -43,10 +43,15 @@ class SarifExporter extends ReportExporter {
     List<Violation> violations,
     Map<String, dynamic>? metadata,
   ) {
+    final highestTier = _determineHighestTier(violations);
+    final toolName = highestTier != null
+        ? 'saropa_lints - ${_tierDisplayName(highestTier)}'
+        : 'saropa_lints';
+
     return {
       'tool': {
         'driver': {
-          'name': 'saropa_lints',
+          'name': toolName,
           'organization': 'Saropa',
           'product': 'Saropa Lints',
           'semanticVersion': metadata?['version'] ?? 'unknown',
@@ -80,6 +85,20 @@ class SarifExporter extends ReportExporter {
     return ruleIds.map((ruleId) {
       final sample = violations.firstWhere((v) => v.rule == ruleId);
       final impact = sample.impact;
+      
+      final properties = <String, dynamic>{
+        'impact': impact?.name ?? 'unknown',
+        'category': _getRuleCategory(ruleId),
+        'tags': _getRuleTags(ruleId, impact),
+      };
+      
+      final owasp = _getOwaspMapping(ruleId);
+      if (owasp != null) {
+        properties['owasp'] = owasp;
+      }
+      
+      properties['cost'] = _getRuleCost(ruleId);
+      
       return {
         'id': ruleId,
         'name': ruleId.replaceAll('_', ' ').toUpperCase(),
@@ -93,11 +112,7 @@ class SarifExporter extends ReportExporter {
         },
         'helpUri':
             'https://pub.dev/packages/saropa_lints#${ruleId.replaceAll('_', '-')}',
-        'properties': {
-          'impact': impact?.name ?? 'unknown',
-          'category': _getRuleCategory(ruleId),
-          'tags': _getRuleTags(ruleId, impact),
-        },
+        'properties': properties,
       };
     }).toList();
   }
@@ -135,7 +150,71 @@ class SarifExporter extends ReportExporter {
     if (ruleId.contains('riverpod')) tags.add('riverpod');
     if (ruleId.contains('provider')) tags.add('provider');
     if (ruleId.contains('firebase')) tags.add('firebase');
+    if (_getOwaspMapping(ruleId) != null) tags.add('owasp');
     return tags;
+  }
+  
+  Map<String, List<String>>? _getOwaspMapping(String ruleId) {
+    if (ruleId.contains('credential')) {
+      return {'mobile': ['M1', 'M9'], 'web': ['A07']};
+    }
+    if (ruleId.contains('crypto') || ruleId.contains('encryption')) {
+      return {'mobile': ['M10'], 'web': ['A02']};
+    }
+    if (ruleId.contains('https') || ruleId.contains('cleartext')) {
+      return {'mobile': ['M5'], 'web': ['A02']};
+    }
+    if (ruleId.contains('injection') || ruleId.contains('sql')) {
+      return {'mobile': ['M4'], 'web': ['A03']};
+    }
+    if (ruleId.contains('auth') || ruleId.contains('permission')) {
+      return {'mobile': ['M3'], 'web': ['A07']};
+    }
+    return null;
+  }
+  
+  String _getRuleCost(String ruleId) {
+    if (ruleId.contains('god_class') ||
+        ruleId.contains('cyclomatic') ||
+        ruleId.contains('cognitive_complexity')) {
+      return 'high';
+    }
+    if (ruleId.startsWith('prefer_') || ruleId.contains('naming')) {
+      return 'low';
+    }
+    return 'medium';
+  }
+  
+  String? _determineHighestTier(List<Violation> violations) {
+    var hasEssential = false;
+    var hasRecommended = false;
+    var hasProfessional = false;
+    
+    for (final v in violations) {
+      if (v.impact == LintImpact.critical) {
+        hasEssential = true;
+      } else if (v.impact == LintImpact.high) {
+        hasRecommended = true;
+      } else if (v.impact == LintImpact.medium) {
+        hasProfessional = true;
+      }
+    }
+    
+    if (hasEssential) return 'essential';
+    if (hasRecommended) return 'recommended';
+    if (hasProfessional) return 'professional';
+    return null;
+  }
+  
+  String _tierDisplayName(String tier) {
+    switch (tier) {
+      case 'essential': return 'Essential';
+      case 'recommended': return 'Recommended';
+      case 'professional': return 'Professional';
+      case 'comprehensive': return 'Comprehensive';
+      case 'pedantic': return 'Pedantic';
+      default: return tier;
+    }
   }
 
   Map<String, dynamic> _toResult(Violation v) {
