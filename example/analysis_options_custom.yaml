@@ -6,6 +6,7 @@
 export_formats:
   - sarif
   - sonar
+  - checkstyle
   # - json  # Coming soon
   # - html  # Coming soon
 

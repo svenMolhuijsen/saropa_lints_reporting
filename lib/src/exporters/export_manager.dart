@@ -4,6 +4,7 @@ import '../models/violation.dart';
 import '../exporters/base_exporter.dart';
 import '../exporters/sarif_exporter.dart';
 import '../exporters/sonar_exporter.dart';
+import '../exporters/checkstyle_exporter.dart';
 
 /// Manages automatic export of analysis results based on configuration.
 ///
@@ -95,6 +96,8 @@ class ExportManager {
         return const SarifExporter();
       case 'sonar':
         return const SonarExporter();
+      case 'checkstyle':
+        return const CheckstyleExporter();
       default:
         return null;
     }
