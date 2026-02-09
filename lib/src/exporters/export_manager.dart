@@ -89,7 +89,7 @@ class ExportManager {
 
       try {
         final outputPath = _customFilenames[format] ?? 
-            'reports/saropa/${_generateDefaultFilename(exporter.fileExtension, metadata['timestamp'] as String?)}');
+            'reports/saropa/${_generateDefaultFilename(exporter.fileExtension, metadata['timestamp'] as String?)}';
         
         await exporter.export(
           violations: violations,
