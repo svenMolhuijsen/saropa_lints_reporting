@@ -14,17 +14,17 @@ import '../exporters/checkstyle_exporter.dart';
 ///   - sarif
 ///   - sonar
 /// 
-/// # Optional: customize output paths
-/// export_paths:
-///   sarif: 'custom/path/my-report.sarif'
-///   sonar: 'reports/sonarqube.json'
-///   checkstyle: 'build/checkstyle-results.xml'
+/// # Optional: customize paths (supports full paths or filenames)
+/// export_filenames:
+///   sarif: 'reports/saropa/saropa.sarif'  # full path
+///   sonar: 'sonarqube-results.json'       # filename only (uses default path)
+///   checkstyle: 'checkstyle.xml'
 /// ```
 class ExportManager {
   ExportManager._();
 
   static final List<String> _enabledFormats = [];
-  static final Map<String, String> _customPaths = {};
+  static final Map<String, String> _customFilenames = {};
   static bool _initialized = false;
 
   /// Initialize from configuration file.
@@ -50,18 +50,22 @@ class ExportManager {
         _enabledFormats.addAll(formats.map((m) => m.group(1)!));
       }
       
-      // Parse export_paths map
-      final pathsMatch = RegExp(
-        r'export_paths:\s*\n((?:\s+\w+:\s*[^\n]+\n?)+)',
+      // Parse export_filenames map
+      final filenamesMatch = RegExp(
+        r'export_filenames:\s*\n((?:\s+\w+:\s*.+\n?)+)',
         multiLine: true,
       ).firstMatch(content);
       
-      if (pathsMatch != null) {
-        final pathsBlock = pathsMatch.group(1)!;
-        final paths = RegExp(r'(\w+):\s*[\'"]?([^\'"]\S+)[\'"]?')
-            .allMatches(pathsBlock);
-        for (final match in paths) {
-          _customPaths[match.group(1)!] = match.group(2)!;
+      if (filenamesMatch != null) {
+        final block = filenamesMatch.group(1)!;
+        for (final line in block.split('\n')) {
+          final match = RegExp(r'(\w+):\s*(.+)').firstMatch(line.trim());
+          if (match != null) {
+            final filename = match.group(2)!.replaceAll(RegExp(r"['\""]|#.*"), '').trim();
+            if (filename.isNotEmpty) {
+              _customFilenames[match.group(1)!] = filename;
+            }
+          }
         }
       }
     } catch (_) {
@@ -84,13 +88,8 @@ class ExportManager {
       if (exporter == null) continue;
 
       try {
-        final extension = exporter.fileExtension;
-
-        // Check for custom path first
-        final outputPath = _customPaths[format] ?? _generateDefaultPath(
-          extension,
-          metadata['timestamp'] as String?,
-        );
+        final outputPath = _customFilenames[format] ?? 
+            'reports/saropa/${_generateDefaultFilename(exporter.fileExtension, metadata['timestamp'] as String?)}');
         
         await exporter.export(
           violations: violations,
@@ -104,7 +103,7 @@ class ExportManager {
     }
   }
   
-  static String _generateDefaultPath(String extension, String? timestamp) {
+  static String _generateDefaultFilename(String extension, String? timestamp) {
     final dt = timestamp != null
         ? DateTime.tryParse(timestamp) ?? DateTime.now()
         : DateTime.now();
@@ -116,7 +115,7 @@ class ExportManager {
         '${dt.minute.toString().padLeft(2, '0')}'
         '${dt.second.toString().padLeft(2, '0')}';
 
-    return 'reports/${ts}_sonar-lint.$extension';
+    return '${ts}_sonar-lint.$extension';
   }
 
   static ReportExporter? _getExporter(String format) {

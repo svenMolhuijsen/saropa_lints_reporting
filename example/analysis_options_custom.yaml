@@ -2,19 +2,18 @@
 # This file is read by saropa_lints for additional settings
 
 # Export formats - automatically generate reports after analysis
-# Supported formats: sarif, json (future), html (future)
+# Supported formats: sarif, sonar, checkstyle
 export_formats:
   - sarif
   - sonar
   - checkstyle
-  # - json  # Coming soon
-  # - html  # Coming soon
 
-# Optional: customize export paths (default: reports/TIMESTAMP_sonar-lint.EXT)
-export_paths:
-  sarif: 'reports/saropa-analysis.sarif'
-  sonar: 'reports/sonarqube-results.json'
-  checkstyle: 'reports/checkstyle.xml'
+# Optional: customize export paths (full paths)
+# Omit for timestamp: reports/saropa/YYYYMMDD_HHMMSS_sonar-lint.EXT
+export_filenames:
+  sarif: 'reports/saropa/saropa.sarif'
+  sonar: 'reports/saropa/sonarqube-results.json'
+  checkstyle: 'reports/saropa/checkstyle.xml'
 
 # Maximum issues to track (0 = unlimited, default: 1000)
 # After this limit, only ERROR-severity rules continue running
