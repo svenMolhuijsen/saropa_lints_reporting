@@ -12,12 +12,19 @@ import '../exporters/checkstyle_exporter.dart';
 /// ```yaml
 /// export_formats:
 ///   - sarif
-///   - json  # future
+///   - sonar
+/// 
+/// # Optional: customize output paths
+/// export_paths:
+///   sarif: 'custom/path/my-report.sarif'
+///   sonar: 'reports/sonarqube.json'
+///   checkstyle: 'build/checkstyle-results.xml'
 /// ```
 class ExportManager {
   ExportManager._();
 
   static final List<String> _enabledFormats = [];
+  static final Map<String, String> _customPaths = {};
   static bool _initialized = false;
 
   /// Initialize from configuration file.
@@ -42,6 +49,21 @@ class ExportManager {
         final formats = RegExp(r'-\s*(\w+)').allMatches(formatsBlock);
         _enabledFormats.addAll(formats.map((m) => m.group(1)!));
       }
+      
+      // Parse export_paths map
+      final pathsMatch = RegExp(
+        r'export_paths:\s*\n((?:\s+\w+:\s*[^\n]+\n?)+)',
+        multiLine: true,
+      ).firstMatch(content);
+      
+      if (pathsMatch != null) {
+        final pathsBlock = pathsMatch.group(1)!;
+        final paths = RegExp(r'(\w+):\s*[\'"]?([^\'"]\S+)[\'"]?')
+            .allMatches(pathsBlock);
+        for (final match in paths) {
+          _customPaths[match.group(1)!] = match.group(2)!;
+        }
+      }
     } catch (_) {
       // Silently ignore config errors
     }
@@ -64,20 +86,12 @@ class ExportManager {
       try {
         final extension = exporter.fileExtension;
 
-        // Use timestamped filenames to avoid overwrites and match other reports
-        final dt = metadata['timestamp'] is String
-            ? DateTime.tryParse(metadata['timestamp'] as String) ??
-                DateTime.now()
-            : DateTime.now();
-        final ts = '${dt.year}'
-            '${dt.month.toString().padLeft(2, '0')}'
-            '${dt.day.toString().padLeft(2, '0')}'
-            '_'
-            '${dt.hour.toString().padLeft(2, '0')}'
-            '${dt.minute.toString().padLeft(2, '0')}'
-            '${dt.second.toString().padLeft(2, '0')}';
-
-        final outputPath = 'reports/${ts}_sonar-lint.$extension';
+        // Check for custom path first
+        final outputPath = _customPaths[format] ?? _generateDefaultPath(
+          extension,
+          metadata['timestamp'] as String?,
+        );
+        
         await exporter.export(
           violations: violations,
           outputPath: outputPath,
@@ -88,6 +102,21 @@ class ExportManager {
         print('  ${format}: ERROR - $e');
       }
     }
+  }
+  
+  static String _generateDefaultPath(String extension, String? timestamp) {
+    final dt = timestamp != null
+        ? DateTime.tryParse(timestamp) ?? DateTime.now()
+        : DateTime.now();
+    final ts = '${dt.year}'
+        '${dt.month.toString().padLeft(2, '0')}'
+        '${dt.day.toString().padLeft(2, '0')}'
+        '_'
+        '${dt.hour.toString().padLeft(2, '0')}'
+        '${dt.minute.toString().padLeft(2, '0')}'
+        '${dt.second.toString().padLeft(2, '0')}';
+
+    return 'reports/${ts}_sonar-lint.$extension';
   }
 
   static ReportExporter? _getExporter(String format) {

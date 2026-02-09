@@ -10,6 +10,12 @@ export_formats:
   # - json  # Coming soon
   # - html  # Coming soon
 
+# Optional: customize export paths (default: reports/TIMESTAMP_sonar-lint.EXT)
+export_paths:
+  sarif: 'reports/saropa-analysis.sarif'
+  sonar: 'reports/sonarqube-results.json'
+  checkstyle: 'reports/checkstyle.xml'
+
 # Maximum issues to track (0 = unlimited, default: 1000)
 # After this limit, only ERROR-severity rules continue running
 max_issues: 1000
